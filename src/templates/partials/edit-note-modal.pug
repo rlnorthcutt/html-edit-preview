@@ -1,0 +1,14 @@
+dialog#editNoteModal
+  article
+    form#editNoteForm(data-preview-id="" data-note-id="")
+      header.mb-3
+        h2 Edit note
+      label
+        span Name
+        input(type="text" name="author_name" required)
+      label
+        span Comment
+        textarea(name="comment" rows="4" required)
+      footer.flex.gap-2.justify-end
+        button(type="button" data-modal-close="editNoteModal") Cancel
+        button(type="submit" data-variant="primary") Save

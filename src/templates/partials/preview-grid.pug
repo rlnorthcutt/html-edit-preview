@@ -1,0 +1,11 @@
+.grid.col-1.md-col-2.lg-col-3.xl-col-4
+  each preview in previews
+    article.preview-card
+      header.preview-card__header
+        h3
+          a(href="/preview/" + preview.id)= preview.title
+        span.status-chip= preview.status
+      p.preview-card__body= preview.description
+      footer.muted
+        span Type: #{preview.type}
+        span Updated: #{preview.updatedOn}

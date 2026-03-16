@@ -1,0 +1,15 @@
+section.container.py-5
+  article.mx-auto(style="max-width: 32rem;")
+    header.mb-3
+      h1 Sign in
+      p Enter your name and the shared password to continue.
+    form#loginForm
+      label
+        span Name
+        input#loginName(type="text" name="name" autocomplete="name" required)
+      label
+        span Password
+        input(type="password" name="password" autocomplete="current-password" required)
+      input(type="hidden" name="destination" value=destination)
+      button(type="submit" data-variant="primary") Login
+      p#loginError.form-error(hidden)

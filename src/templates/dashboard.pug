@@ -1,0 +1,38 @@
+section
+  header.mb-3.flex.items-center.justify-between.flex-wrap.gap-2
+    div
+      h1 Dashboard
+      p Manage previews and approvals.
+    button(type="button" data-modal-open="newPreviewModal" data-variant="primary") Create new preview
+
+  form#filters.flex.flex-wrap.gap-3.mb-4
+    label
+      span Status
+      select(
+        name="status"
+        hx-get="/dashboard/partial/grid"
+        hx-target="#previewGrid"
+        hx-include="#filters"
+        hx-trigger="change"
+      )
+        each option in statusOptions
+          option(value=option selected=option===status)= option
+    label
+      span Sort
+      select(
+        name="sort"
+        hx-get="/dashboard/partial/grid"
+        hx-target="#previewGrid"
+        hx-include="#filters"
+        hx-trigger="change"
+      )
+        each option in sortOptions
+          option(
+            value=option.value
+            selected=option.value===sort
+          )= option.label
+
+  #previewGrid
+    include partials/preview-grid
+
+include partials/new-preview-modal

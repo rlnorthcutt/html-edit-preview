@@ -1,0 +1,12 @@
+dialog#liveEditModal(data-ignore-backdrop)
+  header.live-edit-header
+    span.live-edit-header__title(data-live-edit-title)
+    .flex.items-center.gap-2
+      span#liveEditUnsaved.muted(hidden) Unsaved changes
+      button(type="button" data-action="saveLiveEdit" data-variant="primary") Save
+      button.button-link(type="button" data-modal-close="liveEditModal") Close
+  .live-edit-body
+    .live-edit-pane.live-edit-pane--preview
+      iframe#liveEditFrame(sandbox="allow-forms allow-scripts" title="Live preview")
+    .live-edit-pane.live-edit-pane--editor
+      #liveEditEditor

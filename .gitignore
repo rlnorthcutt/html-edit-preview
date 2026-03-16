@@ -1,0 +1,16 @@
+# Runtime data
+data/
+
+# Deno cache (if vendored locally)
+.deno/
+vendor/deno/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

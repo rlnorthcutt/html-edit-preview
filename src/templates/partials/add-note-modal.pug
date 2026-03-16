@@ -1,0 +1,20 @@
+dialog#addNoteModal
+  article
+    form#addNoteForm(data-preview-id=preview.id)
+      header.mb-3
+        h2 Add note
+      label
+        span Name
+        input(type="text" name="author_name" required value=userName)
+      label
+        span Comment
+        textarea(name="comment" rows="4" required)
+      label
+        span Update status (optional)
+        select(name="update_status")
+          option(value="") No change
+          each option in ['Draft','In Review','Approved','Rejected']
+            option(value=option)= option
+      footer.flex.gap-2.justify-end
+        button(type="button" data-modal-close="addNoteModal") Cancel
+        button(type="submit" data-variant="primary") Add note

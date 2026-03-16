@@ -1,0 +1,25 @@
+doctype html
+html.dark
+  head
+    meta(charset="utf-8")
+    meta(name="viewport" content="width=device-width, initial-scale=1")
+    title= title
+
+    link(rel="stylesheet" href="/static/ivy.full.min.css")
+    link(rel="stylesheet" href="/static/lattice.full.min.css")
+    link(rel="stylesheet" href="/static/app.css")
+    script(src="https://unpkg.com/htmx.org@1.9.12")
+    script(defer src="/static/dark-mode-toggle.min.js")
+    script(defer src="/static/app.js")
+  body.lattice
+    header.full-width.px-4
+      .container.flex.items-center.justify-between.gap-3.flex-wrap
+        a.brand(href="/dashboard") preview
+        if userName
+          .flex.items-center.gap-2
+            a.ghost(href="/dashboard" role="button" aria-label="Dashboard") Dashboard
+            button.icon-button(type="button" data-action="logout" aria-label="Logout" title="Logout")
+              svg(width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false")
+                path(fill="currentColor" d="M10 4v2h4v12h-4v2h6a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-6Zm-1.5 4.5L6 11h9v2H6l2.5 2.5L7 17l-5-5 5-5 1.5 1.5Z")
+    main.container
+      != body

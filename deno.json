@@ -1,0 +1,6 @@
+{
+  "tasks": {
+    "dev": "deno serve --watch --allow-all main.ts"
+  },
+  "unstable": ["node-builtins"]
+}

@@ -1,0 +1,27 @@
+section
+  each note in notes
+    article.pb-3
+      header.flex.items-center.justify-between.py-3
+        div
+          strong= note.author_name
+          small.mx-2= note.createdOn
+        div.flex.gap-2
+          button.icon-button.edit(
+            type="button"
+            data-action="editNote"
+            data-note-id=note.id
+            data-preview-id=note.preview_id
+            data-author=note.author_name
+            data-comment=note.comment
+            aria-label="Edit note"
+            title="Edit note"
+          ) ✎
+          button.icon-button.delete(
+            type="button"
+            data-action="armDeleteNote"
+            data-note-id=note.id
+            aria-label="Delete note"
+            title="Delete note"
+          )
+            span(data-label) ×
+      p= note.comment

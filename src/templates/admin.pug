@@ -1,0 +1,25 @@
+section.py-4
+  header.mb-3
+    h1 Admin
+    p Global password and basic stats.
+
+  article.mb-4.p-3
+    h2 Global password #{current}
+    form#adminPasswordForm
+      label
+        span New password
+        input(type="password" name="password" required)
+      label
+        span Confirm
+        input(type="password" name="confirm" required)
+      button(type="submit" data-variant="primary") Update password
+      p#adminPwMsg.form-help(hidden)
+    p
+      small Updating the password clears all sessions.
+
+  article.p-3
+    h2 Stats
+    ul
+      li #{stats.previews} previews
+      li #{stats.notes} notes
+      li #{stats.sessions} active sessions

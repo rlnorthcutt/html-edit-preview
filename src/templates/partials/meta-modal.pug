@@ -1,0 +1,27 @@
+dialog#metaModal
+  article
+    form#metaForm(data-preview-id=preview.id)
+      label
+        span Title
+        input(type="text" name="title" required value=preview.title)
+      label
+        span Description
+        textarea(name="description" rows="3" required)= preview.description
+      label
+        span Status
+        select(name="status")
+          each option in ['Draft','In Review','Approved','Rejected']
+            option(value=option selected=option===preview.status)= option
+      label
+        span Type
+        select(name="type")
+          each option in ['Mockup','Email','Landing','Other']
+            option(value=option selected=option===preview.type)= option
+      label
+        span Owner
+        input(type="text" name="owner" required value=preview.owner)
+      footer.flex.gap-2.justify-end
+        button(type="submit" data-variant="primary") Save
+        button(type="button" data-action="confirmDeletePreview" data-preview-id=preview.id)
+          span(data-label) Delete
+        button(type="button" data-modal-close="metaModal") Cancel

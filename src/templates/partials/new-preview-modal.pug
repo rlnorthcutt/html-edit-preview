@@ -1,0 +1,27 @@
+dialog#newPreviewModal
+  article
+    form#newPreviewForm
+      header.mb-3
+        h2 New preview
+      label
+        span Title
+        input(type="text" name="title" required)
+      label
+        span Description
+        textarea(name="description" rows="3" required)
+      label
+        span Status
+        select(name="status")
+          each option in ['Draft','In Review','Approved','Rejected']
+            option(value=option)= option
+      label
+        span Type
+        select(name="type")
+          each option in ['Mockup','Email','Landing','Other']
+            option(value=option)= option
+      label
+        span Owner
+        input(type="text" name="owner" required value=(userName || ''))
+      footer.flex.gap-2.justify-end
+        button(type="button" data-modal-close="newPreviewModal") Cancel
+        button(type="submit" data-variant="primary") Create

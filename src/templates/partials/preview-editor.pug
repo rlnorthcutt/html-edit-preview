@@ -1,0 +1,12 @@
+section
+  p#editorInstructions.muted Full HTML only. Editor uses a monospace font. Changes update the preview below.
+  #editor(
+    data-preview-id=preview.id
+    data-original=preview.html_content
+  )
+  iframe#previewFrame(
+    sandbox="allow-forms allow-scripts"
+    srcdoc=preview.html_content
+  )
+  script.
+    window.__preview_EDITOR_MODE__ = true;
