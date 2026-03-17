@@ -141,6 +141,7 @@ export class PreviewDB {
 
   // -------- Sessions --------
   createSession(token: string, name: string, expiresAtIso: string) {
+    this.cleanupExpiredSessions();
     const t = nowIso();
     this.db.prepare(`
       INSERT INTO sessions (token, name, expires_at, created_at)
@@ -249,6 +250,11 @@ export class PreviewDB {
   }
 
   // -------- Notes --------
+  countNotes(previewId: number): number {
+    const row = this.db.prepare(`SELECT COUNT(*) as c FROM notes WHERE preview_id = ?`).get(previewId) as { c: number };
+    return row.c;
+  }
+
   listNotes(previewId: number): Note[] {
     return this.db.prepare(`
       SELECT id, preview_id, author_name, comment, created_at

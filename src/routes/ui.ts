@@ -83,7 +83,7 @@ export function createUiRouter(db: PreviewDB) {
     if (!preview) return c.notFound();
 
     const tab = c.req.query("tab") || "view";
-    const noteCountNumber = db.listNotes(id).length;
+    const noteCountNumber = db.countNotes(id);
     const badgeCount = noteCountNumber > 9 ? "9+" : String(noteCountNumber);
     const previewView = {
       ...preview,

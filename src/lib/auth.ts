@@ -29,7 +29,6 @@ function getSessionTokenFromCookie(req: Request): string | null {
 }
 
 export function requireAuth(db: PreviewDB, req: Request): AuthedUser | null {
-  db.cleanupExpiredSessions();
   const token = getSessionTokenFromRequest(req) ?? getSessionTokenFromCookie(req);
   if (!token) return null;
 

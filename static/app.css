@@ -90,7 +90,7 @@ main {
 
 #previewFrame {
   width: 100%;
-  min-height: 1200vh;
+  min-height: 30rem;
   border: var(--bw-1, 1px) solid var(--color-border, currentColor);
   border-radius: var(--radius, 0.5rem);
 }
@@ -176,6 +176,16 @@ dialog {
   height: 100%;
 }
 
+/* Monaco line highlight for click-to-source */
+.hap-line-highlight {
+  background: rgba(66, 153, 225, 0.15) !important;
+}
+
+.hap-line-gutter {
+  width: 3px !important;
+  background: rgb(66, 153, 225);
+}
+
 .preview-layout {
   display: flex;
   flex-wrap: wrap;
@@ -230,11 +240,6 @@ dialog {
   border-radius: 999px;
   font-size: 0.85em;
   border: var(--bw-1, 1px) solid currentColor;
-}
-
-.delete {
-  background: #500;
-  opacity: 0.5;
 }
 
 .add {

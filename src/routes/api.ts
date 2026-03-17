@@ -70,6 +70,9 @@ export function createApiRouter(db: PreviewDB) {
     const id = Number(c.req.param("id"));
     const body = await c.req.json().catch(() => ({}));
     const html = String(body.html ?? "");
+    if (html.length > 1_000_000) {
+      return c.json({ ok: false, error: "HTML content exceeds 1 MB limit." }, 413);
+    }
     db.updatePreviewHtml(id, html);
     return c.json({ ok: true });
   });

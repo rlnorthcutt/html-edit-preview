@@ -487,11 +487,6 @@ async function initMonacoIfNeeded() {
     document.head.appendChild(s);
   });
 
-  if (window.__preview_MONACO_STUB__) {
-    console.warn("Monaco editor assets are not available. Add /static/vendor/monaco/vs to enable the editor.");
-    return;
-  }
-
   const loader = window.require || globalThis.require;
   if (!loader?.config || typeof loader !== "function") {
     console.warn("Monaco loader not detected. Ensure loader.js is the official AMD loader.");
@@ -530,6 +525,10 @@ async function initMonacoIfNeeded() {
       ribbon.hidden = !dirty;
       if (instructions) instructions.hidden = dirty;
     }
+
+    window.addEventListener("beforeunload", (e) => {
+      if (ed.getValue() !== lastSaved) e.preventDefault();
+    });
 
     setIframe(original);
     updateRibbon();
@@ -575,7 +574,54 @@ initMonacoIfNeeded();
   let liveEd = null;
   let liveLastSaved = "";
   let livePreviewId = "";
+  let hapDecorations = [];
 
+  // Inject data-hap-line="N" onto every opening tag so the iframe can report source lines.
+  // Works line-by-line, which handles the vast majority of hand-written HTML correctly.
+  function injectSourceMarkers(html) {
+    const lines = html.split("\n");
+    return lines.map((line, idx) => {
+      const lineNum = idx + 1;
+      return line.replace(/<([a-zA-Z][a-zA-Z0-9-]*)([^>]*?)(\/?>)/g, (_, tag, attrs, end) => {
+        return `<${tag}${attrs.trimEnd()} data-hap-line="${lineNum}"${end}`;
+      });
+    }).join("\n");
+  }
+
+  // Build the srcdoc value: source markers + a small interaction script injected before </body>.
+  function buildSrcdoc(html) {
+    const marked = injectSourceMarkers(html);
+    const script = `<script>
+(function() {
+  var h = null;
+  document.addEventListener("mouseover", function(e) {
+    var el = e.target;
+    if (el === document.documentElement || el === document.body) return;
+    if (h && h !== el) { h.style.removeProperty("outline"); h.style.removeProperty("cursor"); }
+    h = el;
+    el.style.setProperty("outline", "2px solid rgba(66,153,225,0.7)", "important");
+    el.style.setProperty("cursor", "crosshair", "important");
+  }, true);
+  document.addEventListener("mouseout", function(e) {
+    e.target.style.removeProperty("outline");
+    e.target.style.removeProperty("cursor");
+  }, true);
+  document.addEventListener("click", function(e) {
+    var el = e.target;
+    while (el && !el.dataset.hapLine) el = el.parentElement;
+    if (el && el.dataset.hapLine) {
+      window.parent.postMessage({ type: "hap-click", line: +el.dataset.hapLine }, "*");
+    }
+  }, true);
+})();
+<` + `/script>`;
+    const closeBody = marked.lastIndexOf("</body>");
+    return closeBody !== -1
+      ? marked.slice(0, closeBody) + script + "\n" + marked.slice(closeBody)
+      : marked + "\n" + script;
+  }
+
+  // --- Open modal ---
   document.addEventListener("click", (e) => {
     const target = e.target instanceof Element ? e.target : null;
     const btn = target?.closest('[data-action="openLiveEdit"]');
@@ -583,13 +629,11 @@ initMonacoIfNeeded();
 
     livePreviewId = btn.getAttribute("data-preview-id") || "";
 
-    // Determine initial HTML: prefer live edit-tab Monaco value, fall back to viewer iframe
     const mainEd = window.__hapMonacoEditor;
     const html = mainEd
       ? mainEd.getValue()
       : (document.getElementById("previewFrame")?.getAttribute("srcdoc") || "");
 
-    // Set title in modal header
     const titleEl = document.querySelector("[data-live-edit-title]");
     const headingEl = document.querySelector("h1");
     if (titleEl && headingEl) titleEl.textContent = headingEl.textContent;
@@ -598,23 +642,22 @@ initMonacoIfNeeded();
     initLiveMonaco(html);
   });
 
+  // --- Monaco init ---
   function initLiveMonaco(initialHtml) {
     const editorEl = document.getElementById("liveEditEditor");
     const frame = document.getElementById("liveEditFrame");
     if (!editorEl || !frame) return;
 
-    // Update the preview iframe immediately
-    frame.setAttribute("srcdoc", initialHtml);
+    frame.setAttribute("srcdoc", buildSrcdoc(initialHtml));
     liveLastSaved = initialHtml;
 
-    // If Monaco is already initialized in the modal, just sync the value
     if (liveEd) {
       liveEd.setValue(initialHtml);
+      hapDecorations = liveEd.deltaDecorations(hapDecorations, []);
       updateLiveUnsaved();
       return;
     }
 
-    // Load the Monaco loader script if it hasn't been loaded yet
     const loaderReady = window.require
       ? Promise.resolve()
       : new Promise((resolve, reject) => {
@@ -626,7 +669,6 @@ initMonacoIfNeeded();
         });
 
     loaderReady.then(() => {
-      if (window.__preview_MONACO_STUB__) return;
       const loader = window.require;
       if (!loader) return;
 
@@ -650,20 +692,42 @@ initMonacoIfNeeded();
         liveEd.onDidChangeModelContent(() => {
           cancelAnimationFrame(raf);
           raf = requestAnimationFrame(() => {
-            frame.setAttribute("srcdoc", liveEd.getValue());
+            frame.setAttribute("srcdoc", buildSrcdoc(liveEd.getValue()));
             updateLiveUnsaved();
           });
+        });
+
+        // --- Click-to-source: receive line number from iframe, highlight in editor ---
+        window.addEventListener("message", function (e) {
+          const liveFrame = document.getElementById("liveEditFrame");
+          if (e.source !== liveFrame?.contentWindow) return;
+          if (e.data?.type !== "hap-click") return;
+          const line = e.data.line;
+          if (!liveEd || !line) return;
+          // eslint-disable-next-line no-undef
+          hapDecorations = liveEd.deltaDecorations(hapDecorations, [{
+            range: new monaco.Range(line, 1, line, Number.MAX_VALUE),
+            options: {
+              isWholeLine: true,
+              className: "hap-line-highlight",
+              linesDecorationsClassName: "hap-line-gutter",
+            },
+          }]);
+          liveEd.revealLineInCenter(line);
+          liveEd.setPosition({ lineNumber: line, column: 1 });
         });
       });
     }).catch(() => {});
   }
 
+  // --- Unsaved indicator ---
   function updateLiveUnsaved() {
     const el = document.getElementById("liveEditUnsaved");
     if (!el || !liveEd) return;
     el.hidden = liveEd.getValue() === liveLastSaved;
   }
 
+  // --- Save ---
   document.addEventListener("click", async (e) => {
     const target = e.target instanceof Element ? e.target : null;
     const btn = target?.closest('[data-action="saveLiveEdit"]');
@@ -681,12 +745,10 @@ initMonacoIfNeeded();
     liveLastSaved = html;
     updateLiveUnsaved();
 
-    // Sync the edit-tab Monaco editor if it exists
     if (window.__hapMonacoEditor) {
       window.__hapMonacoEditor.setValue(html);
     }
 
-    // Update the view-tab iframe if it exists (no full reload needed)
     const viewFrame = document.getElementById("previewFrame");
     if (viewFrame && !window.__preview_EDITOR_MODE__) {
       viewFrame.setAttribute("srcdoc", html);
