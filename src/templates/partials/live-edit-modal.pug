@@ -7,6 +7,6 @@ dialog#liveEditModal(data-ignore-backdrop)
       button.button-link(type="button" data-modal-close="liveEditModal") Close
   .live-edit-body
     .live-edit-pane.live-edit-pane--preview
-      iframe#liveEditFrame(sandbox="allow-forms allow-scripts" title="Live preview")
+      iframe#liveEditFrame(sandbox="allow-forms allow-scripts allow-same-origin" title="Live preview")
     .live-edit-pane.live-edit-pane--editor
       #liveEditEditor

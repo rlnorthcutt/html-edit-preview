@@ -688,11 +688,26 @@ initMonacoIfNeeded();
 
         updateLiveUnsaved();
 
+        // Replace document in-place — no iframe navigation, no flash, scroll preserved.
+        function writeLiveFrame(html) {
+          const doc = frame.contentDocument;
+          const win = frame.contentWindow;
+          if (doc && win) {
+            const scrollY = win.scrollY;
+            doc.open();
+            doc.write(buildSrcdoc(html));
+            doc.close();
+            requestAnimationFrame(() => win.scrollTo(0, scrollY));
+          } else {
+            frame.setAttribute("srcdoc", buildSrcdoc(html));
+          }
+        }
+
         let raf = 0;
         liveEd.onDidChangeModelContent(() => {
           cancelAnimationFrame(raf);
           raf = requestAnimationFrame(() => {
-            frame.setAttribute("srcdoc", buildSrcdoc(liveEd.getValue()));
+            writeLiveFrame(liveEd.getValue());
             updateLiveUnsaved();
           });
         });
