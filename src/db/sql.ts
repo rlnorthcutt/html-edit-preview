@@ -108,7 +108,7 @@ export class PreviewDB {
   <body>
     <h1>HTML Preview</h1>
     <div class="box">
-      <p>Go to the <b>Edit</b> tab and start typing.</p>
+      <p>Click <b>Edit</b> to open the live editor and start typing.</p>
       <p>Tip: use <code>absolute URLs</code> for images and CSS.</p>
     </div>
   </body>

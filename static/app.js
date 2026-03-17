@@ -466,109 +466,6 @@ if (metaForm) {
   });
 }
 
-// ---------- Monaco editor (edit tab) ----------
-async function initMonacoIfNeeded() {
-  if (!window.__preview_EDITOR_MODE__) return;
-
-  const editorEl = document.getElementById("editor");
-  const iframe = document.getElementById("previewFrame");
-  if (!editorEl || !iframe) return;
-
-  const previewId = editorEl.getAttribute("data-preview-id");
-  const original = editorEl.getAttribute("data-original") || "";
-  const ribbon = document.getElementById("unsavedRibbon");
-  const instructions = document.getElementById("editorInstructions");
-
-  await new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = "/static/vendor/monaco/loader.js";
-    s.onload = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
-
-  const loader = window.require || globalThis.require;
-  if (!loader?.config || typeof loader !== "function") {
-    console.warn("Monaco loader not detected. Ensure loader.js is the official AMD loader.");
-    return;
-  }
-
-  loader.config({ paths: { vs: "/static/vendor/monaco/vs" } });
-
-  loader(["vs/editor/editor.main"], function () {
-    // eslint-disable-next-line no-undef
-    window.__hapMonacoEditor = null;
-    const ed = monaco.editor.create(editorEl, {
-      value: original,
-      language: "html",
-      theme: "vs-dark",
-      automaticLayout: true,
-      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-      fontSize: 13,
-      minimap: { enabled: false },
-      wordWrap: "on",
-    });
-
-    window.__hapMonacoEditor = ed;
-    let lastSaved = original;
-    let raf = 0;
-
-    function setIframe(html) {
-      ensureIframeAutoResize(iframe);
-      iframe.setAttribute("srcdoc", html);
-      requestAnimationFrame(() => updateIframeHeight(iframe));
-    }
-
-    function updateRibbon() {
-      const dirty = ed.getValue() !== lastSaved;
-      if (!ribbon) return;
-      ribbon.hidden = !dirty;
-      if (instructions) instructions.hidden = dirty;
-    }
-
-    window.addEventListener("beforeunload", (e) => {
-      if (ed.getValue() !== lastSaved) e.preventDefault();
-    });
-
-    setIframe(original);
-    updateRibbon();
-
-    ed.onDidChangeModelContent(() => {
-      const html = ed.getValue();
-
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => setIframe(html));
-      updateRibbon();
-    });
-
-    document.addEventListener("click", async (e) => {
-      const t = e.target;
-      if (t?.getAttribute?.("data-action") === "saveHtml") {
-        const html = ed.getValue();
-        const res = await fetch(`/api/previews/${previewId}/html`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", ...authHeader() },
-          body: JSON.stringify({ html }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (data.ok) {
-          lastSaved = html;
-          updateRibbon();
-          window.location.href = `/preview/${previewId}?tab=view`;
-        }
-      }
-
-      if (t?.getAttribute?.("data-action") === "discardHtml") {
-        ed.setValue(lastSaved);
-        setIframe(lastSaved);
-        updateRibbon();
-      }
-    });
-  });
-}
-
-initMonacoIfNeeded();
-
 // ---------- Live Edit modal ----------
 (function () {
   let liveEd = null;
@@ -629,10 +526,7 @@ initMonacoIfNeeded();
 
     livePreviewId = btn.getAttribute("data-preview-id") || "";
 
-    const mainEd = window.__hapMonacoEditor;
-    const html = mainEd
-      ? mainEd.getValue()
-      : (document.getElementById("previewFrame")?.getAttribute("srcdoc") || "");
+    const html = document.getElementById("previewFrame")?.getAttribute("srcdoc") || "";
 
     const titleEl = document.querySelector("[data-live-edit-title]");
     const headingEl = document.querySelector("h1");
@@ -760,14 +654,8 @@ initMonacoIfNeeded();
     liveLastSaved = html;
     updateLiveUnsaved();
 
-    if (window.__hapMonacoEditor) {
-      window.__hapMonacoEditor.setValue(html);
-    }
-
     const viewFrame = document.getElementById("previewFrame");
-    if (viewFrame && !window.__preview_EDITOR_MODE__) {
-      viewFrame.setAttribute("srcdoc", html);
-    }
+    if (viewFrame) viewFrame.setAttribute("srcdoc", html);
 
     closeModal("liveEditModal");
   });
@@ -781,6 +669,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const count = Number(notesBtn.getAttribute('data-note-count') || '0');
     setNotesCount(count);
     const label = notesBtn.querySelector('[data-note-label]');
-    if (label) label.textContent = notesBtn.dataset.open === 'true' ? 'Hide notes' : 'See notes';
+    if (label) label.textContent = 'See notes';
   }
 });

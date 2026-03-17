@@ -9,24 +9,11 @@ section.py-4
 
   div.flex.items-center.justify-between.gap-2.py-3#previewTools
     div.flex.gap-2
-      button.button-link(type="button" class=tab === 'view' ? 'is-active' : '' onclick=`window.location.href='/preview/${preview.id}?tab=view#previewTools'`)
-        | View
-      button.button-link(type="button" class=tab === 'edit' ? 'is-active' : '' onclick=`window.location.href='/preview/${preview.id}?tab=edit#previewTools'`)
-        | Edit
-      button.button-link(type="button" data-action="openLiveEdit" data-preview-id=preview.id)
-        | Live Edit
+      button.button-link(type="button" onclick=`window.open('/preview/${preview.id}/render', '_blank', 'noopener')`) Full view
+      button.button-link(type="button" data-action="openLiveEdit" data-preview-id=preview.id) Edit
       button.icon-button(type="button" aria-label="Settings" data-modal-open="metaModal" data-preview-scroll="main")
         svg(width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false")
           path(fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.63l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.027 7.027 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 14.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.14.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L3.31 8.48a.5.5 0 0 0 .12.63l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.63l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.49.39 1.04.7 1.63.94l.36 2.54c.03.24.24.42.49.42h3.8c.25 0 .46-.18.49-.42l.36-2.54c.59-.24 1.14-.55 1.63-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.63l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5Z")
-    #unsavedRibbon.flex.items-center.gap-2(hidden)
-      span You have unsaved changes.
-      button(
-        type="button"
-        data-variant="primary"
-        data-action="saveHtml"
-        data-preview-id=preview.id
-      ) Save changes
-      button(type="button" data-action="discardHtml") Discard
     button.notes-toggle(type="button" data-action="toggleNotes" data-notes-button data-note-count=preview.noteCountNumber data-preview-scroll="main")
       span(data-note-label)= preview.notesCTA
       if preview.noteCountNumber > 0
@@ -34,10 +21,7 @@ section.py-4
 
   .preview-layout
     section.preview-main.pt-0
-      if tab === 'edit'
-        include partials/preview-editor
-      else
-        include partials/preview-viewer
+      include partials/preview-viewer
 
     aside#notesSidebar(hidden)
       header.flex.items-center.justify-between.items-center.py-3

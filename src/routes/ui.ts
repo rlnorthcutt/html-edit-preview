@@ -82,7 +82,6 @@ export function createUiRouter(db: PreviewDB) {
     const preview = db.getPreview(id);
     if (!preview) return c.notFound();
 
-    const tab = c.req.query("tab") || "view";
     const noteCountNumber = db.countNotes(id);
     const badgeCount = noteCountNumber > 9 ? "9+" : String(noteCountNumber);
     const previewView = {
@@ -93,8 +92,19 @@ export function createUiRouter(db: PreviewDB) {
       noteCountNumber,
       notesCTA: "See notes",
     };
-    const body = renderTemplate("preview.pug", { preview: previewView, tab, userName: auth.name });
+    const body = renderTemplate("preview.pug", { preview: previewView, userName: auth.name });
     return c.html(layout({ title: `${preview.title} – preview`, userName: auth.name, body, active: "preview" }));
+  });
+
+  ui.get("/preview/:id/render", (c) => {
+    const auth = requireAuth(db, c.req.raw);
+    const id = Number(c.req.param("id"));
+    if (!auth) return c.redirect(`/?destination=${encodeURIComponent(String(id))}`);
+
+    const preview = db.getPreview(id);
+    if (!preview) return c.notFound();
+
+    return c.body(preview.html_content, 200, { "Content-Type": "text/html; charset=utf-8" });
   });
 
   ui.get("/preview/:id/partial/notes", (c) => {
