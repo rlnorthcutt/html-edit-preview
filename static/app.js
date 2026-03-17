@@ -505,6 +505,8 @@ if (metaForm) {
   }, true);
   document.addEventListener("click", function(e) {
     var el = e.target;
+    var isInteractive = !!el.closest("a, button, input, select, textarea, [onclick], [role=button]");
+    if (isInteractive) e.preventDefault();
     while (el && !el.dataset.hapLine) el = el.parentElement;
     if (el && el.dataset.hapLine) {
       window.parent.postMessage({ type: "hap-click", line: +el.dataset.hapLine }, "*");

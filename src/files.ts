@@ -4,14 +4,7 @@ import { serveStatic } from "https://deno.land/x/hono@v4.3.11/middleware.ts";
 export const fileRouter = new Hono();
 
 // Serve everything under /
-fileRouter.use("/*", async (c, next) => {
-  try {
-    return await serveStatic({ root: "./" })(c, next);
-  } catch (e) {
-    if (e instanceof Error && e.message.includes("os error 2")) return c.notFound();
-    throw e;
-  }
-});
+fileRouter.use("/*", serveStatic({ root: "./" }));
 
 // MIME corrections (Deno can be picky)
 fileRouter.use("/*", async (c, next) => {
