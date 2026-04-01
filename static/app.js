@@ -472,6 +472,200 @@ if (metaForm) {
   let liveLastSaved = "";
   let livePreviewId = "";
   let hapDecorations = [];
+  let activeTab = "editor";
+
+  function formatDate(iso) {
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        month: "short", day: "numeric", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      }).format(new Date(iso));
+    } catch (_) {
+      return iso;
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  async function loadTaggedVersions() {
+    if (!livePreviewId) return;
+    const res = await fetch(`/api/previews/${livePreviewId}/versions?tagged=1`, {
+      headers: { ...authHeader() },
+    });
+    const data = await res.json().catch(() => ({}));
+    const select = document.getElementById("versionTagSelect");
+    const createBtn = document.getElementById("versionTagCreate");
+    if (!select || !data.ok) return;
+    const versions = data.versions || [];
+    const hasTagged = versions.length > 0;
+    select.hidden = !hasTagged;
+    if (createBtn) createBtn.hidden = hasTagged;
+    while (select.options.length > 1) select.remove(1);
+    for (const v of versions) {
+      const opt = document.createElement("option");
+      opt.value = String(v.id);
+      opt.textContent = `${escapeHtml(v.tag)} — ${formatDate(v.created_at)}`;
+      select.appendChild(opt);
+    }
+  }
+
+  async function loadVersionHistory() {
+    if (!livePreviewId) return;
+    const res = await fetch(`/api/previews/${livePreviewId}/versions`, {
+      headers: { ...authHeader() },
+    });
+    const data = await res.json().catch(() => ({}));
+    const tbody = document.getElementById("versionHistoryBody");
+    const empty = document.getElementById("versionHistoryEmpty");
+    const table = document.getElementById("versionHistoryTable");
+    if (!tbody) return;
+
+    tbody.innerHTML = "";
+    const versions = data.versions || [];
+
+    if (versions.length === 0) {
+      if (empty) empty.hidden = false;
+      if (table) table.hidden = true;
+      return;
+    }
+
+    if (empty) empty.hidden = true;
+    if (table) table.hidden = false;
+
+    for (const v of versions) {
+      const tr = document.createElement("tr");
+      const tagCell = v.tag
+        ? `<span class="version-tag-badge">${escapeHtml(v.tag)}</span>`
+        : `<span style="opacity:0.4">—</span>`;
+      const actions = [
+        `<button class="button-link" data-action="restoreVersion" data-version-id="${v.id}">Restore</button>`,
+        v.tag
+          ? `<button class="button-link danger" data-action="removeVersionTag" data-version-id="${v.id}">Remove tag</button>`
+          : `<button class="button-link" data-action="tagVersion" data-version-id="${v.id}">Tag…</button>`,
+      ].join(" ");
+      tr.innerHTML = `<td>${escapeHtml(formatDate(v.created_at))}</td><td>${tagCell}</td><td>${actions}</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function switchTab(tab) {
+    activeTab = tab;
+    const editorContent = document.querySelector('[data-tab-content="editor"]');
+    const historyContent = document.querySelector('[data-tab-content="history"]');
+    const saveBtn = document.getElementById("liveEditSaveBtn");
+    const unsaved = document.getElementById("liveEditUnsaved");
+
+    document.querySelectorAll(".tab-btn[data-tab]").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.tab === tab);
+    });
+
+    if (tab === "editor") {
+      if (editorContent) editorContent.hidden = false;
+      if (historyContent) historyContent.hidden = true;
+      if (saveBtn) saveBtn.hidden = false;
+      updateLiveUnsaved();
+      // Let Monaco re-measure after becoming visible
+      requestAnimationFrame(() => liveEd?.layout());
+    } else {
+      if (editorContent) editorContent.hidden = true;
+      if (historyContent) historyContent.hidden = false;
+      if (saveBtn) saveBtn.hidden = true;
+      if (unsaved) unsaved.hidden = true;
+      loadVersionHistory();
+    }
+  }
+
+  // Tab clicks
+  document.addEventListener("click", (e) => {
+    const target = e.target instanceof Element ? e.target : null;
+    const btn = target?.closest(".tab-btn[data-tab]");
+    if (!btn) return;
+    const tab = btn.dataset.tab;
+    if (tab) switchTab(tab);
+  });
+
+  // Go to history tab
+  document.addEventListener("click", (e) => {
+    const target = e.target instanceof Element ? e.target : null;
+    if (!target?.closest('[data-action="goToHistory"]')) return;
+    switchTab("history");
+  });
+
+  // Restore a version into editor
+  document.addEventListener("click", async (e) => {
+    const target = e.target instanceof Element ? e.target : null;
+    const btn = target?.closest('[data-action="restoreVersion"]');
+    if (!btn || !livePreviewId) return;
+    const versionId = btn.getAttribute("data-version-id");
+    if (!versionId) return;
+    const res = await fetch(`/api/previews/${livePreviewId}/versions/${versionId}`, {
+      headers: { ...authHeader() },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!data.ok || !liveEd) return;
+    liveEd.setValue(data.version.html_content);
+    switchTab("editor");
+    updateLiveUnsaved();
+  });
+
+  // Tag a version
+  document.addEventListener("click", async (e) => {
+    const target = e.target instanceof Element ? e.target : null;
+    const btn = target?.closest('[data-action="tagVersion"]');
+    if (!btn || !livePreviewId) return;
+    const versionId = btn.getAttribute("data-version-id");
+    if (!versionId) return;
+    const tag = prompt("Tag name (e.g. v1, v2):");
+    if (!tag?.trim()) return;
+    const res = await fetch(`/api/previews/${livePreviewId}/versions/${versionId}/tag`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeader() },
+      body: JSON.stringify({ tag: tag.trim() }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.ok) {
+      loadVersionHistory();
+      loadTaggedVersions();
+    }
+  });
+
+  // Remove tag from a version
+  document.addEventListener("click", async (e) => {
+    const target = e.target instanceof Element ? e.target : null;
+    const btn = target?.closest('[data-action="removeVersionTag"]');
+    if (!btn || !livePreviewId) return;
+    const versionId = btn.getAttribute("data-version-id");
+    if (!versionId) return;
+    const res = await fetch(`/api/previews/${livePreviewId}/versions/${versionId}/tag`, {
+      method: "DELETE",
+      headers: { ...authHeader() },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.ok) {
+      loadVersionHistory();
+      loadTaggedVersions();
+    }
+  });
+
+  // Tagged version dropdown: load selected version into editor
+  document.addEventListener("change", async (e) => {
+    const target = e.target instanceof Element ? e.target : null;
+    if (!target || target.id !== "versionTagSelect") return;
+    const versionId = target.value;
+    if (!versionId || !liveEd || !livePreviewId) return;
+    const res = await fetch(`/api/previews/${livePreviewId}/versions/${versionId}`, {
+      headers: { ...authHeader() },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!data.ok) return;
+    liveEd.setValue(data.version.html_content);
+    target.value = "";
+    updateLiveUnsaved();
+  });
 
   // Inject data-hap-line="N" onto every opening tag so the iframe can report source lines.
   // Works line-by-line, which handles the vast majority of hand-written HTML correctly.
@@ -535,7 +729,9 @@ if (metaForm) {
     if (titleEl && headingEl) titleEl.textContent = headingEl.textContent;
 
     openModal("liveEditModal");
+    switchTab("editor");
     initLiveMonaco(html);
+    loadTaggedVersions();
   });
 
   // --- Monaco init ---
@@ -655,11 +851,10 @@ if (metaForm) {
 
     liveLastSaved = html;
     updateLiveUnsaved();
+    loadTaggedVersions();
 
     const viewFrame = document.getElementById("previewFrame");
     if (viewFrame) viewFrame.setAttribute("srcdoc", html);
-
-    closeModal("liveEditModal");
   });
 }());
 

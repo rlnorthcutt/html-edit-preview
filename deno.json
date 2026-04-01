@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev": "deno serve --watch --allow-all main.ts"
-  },
-  "unstable": ["node-builtins"]
+    "dev": "deno serve --watch --allow-all main.ts",
+    "test": "deno test --allow-all src/"
+  }
 }

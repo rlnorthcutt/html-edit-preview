@@ -24,6 +24,14 @@ export type Note = {
   created_at: string;
 };
 
+export type Version = {
+  id: number;
+  preview_id: number;
+  html_content: string;
+  tag: string | null;
+  created_at: string;
+};
+
 type SessionRow = {
   token: string;
   name: string;
@@ -75,6 +83,15 @@ export class PreviewDB {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
         updated_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE TABLE IF NOT EXISTS preview_versions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        preview_id INTEGER NOT NULL,
+        html_content TEXT NOT NULL,
+        tag TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(preview_id) REFERENCES previews(id) ON DELETE CASCADE
       ) STRICT;
     `);
 
@@ -293,5 +310,70 @@ export class PreviewDB {
   }
   deletePreview(id: number) {
     this.db.prepare(`DELETE FROM previews WHERE id = ?`).run(id);
+  }
+
+  // -------- Versions --------
+  saveVersion(previewId: number, html: string) {
+    const t = nowIso();
+    this.db.prepare(`
+      INSERT INTO preview_versions (preview_id, html_content, created_at)
+      VALUES (?, ?, ?)
+    `).run(previewId, html, t);
+
+    // Keep only the 5 most recent untagged versions per preview
+    this.db.prepare(`
+      DELETE FROM preview_versions
+      WHERE preview_id = ?
+      AND tag IS NULL
+      AND id NOT IN (
+        SELECT id FROM preview_versions
+        WHERE preview_id = ? AND tag IS NULL
+        ORDER BY created_at DESC, id DESC
+        LIMIT 5
+      )
+    `).run(previewId, previewId);
+  }
+
+  listVersions(previewId: number): Version[] {
+    return this.db.prepare(`
+      SELECT id, preview_id, html_content, tag, created_at
+      FROM preview_versions
+      WHERE preview_id = ?
+      AND (
+        tag IS NOT NULL
+        OR id IN (
+          SELECT id FROM preview_versions
+          WHERE preview_id = ? AND tag IS NULL
+          ORDER BY created_at DESC, id DESC
+          LIMIT 5
+        )
+      )
+      ORDER BY created_at DESC, id DESC
+    `).all(previewId, previewId) as Version[];
+  }
+
+  listTaggedVersions(previewId: number): Omit<Version, "html_content">[] {
+    return this.db.prepare(`
+      SELECT id, preview_id, tag, created_at
+      FROM preview_versions
+      WHERE preview_id = ? AND tag IS NOT NULL
+      ORDER BY created_at DESC, id DESC
+    `).all(previewId) as Omit<Version, "html_content">[];
+  }
+
+  getVersion(versionId: number): Version | null {
+    const row = this.db.prepare(`
+      SELECT id, preview_id, html_content, tag, created_at
+      FROM preview_versions WHERE id = ?
+    `).get(versionId) as Version | undefined;
+    return row ?? null;
+  }
+
+  tagVersion(versionId: number, tag: string) {
+    this.db.prepare(`UPDATE preview_versions SET tag = ? WHERE id = ?`).run(tag, versionId);
+  }
+
+  removeVersionTag(versionId: number) {
+    this.db.prepare(`UPDATE preview_versions SET tag = NULL WHERE id = ?`).run(versionId);
   }
 }

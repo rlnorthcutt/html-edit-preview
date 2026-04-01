@@ -1,12 +1,29 @@
 dialog#liveEditModal(data-ignore-backdrop)
   header.live-edit-header
     span.live-edit-header__title(data-live-edit-title)
+    .live-edit-tabs
+      button.tab-btn.is-active(type="button" data-tab="editor") Editor
+      button.tab-btn(type="button" data-tab="history") History
+    .live-edit-header__center
+      select#versionTagSelect(hidden)
+        option(value="") ← Restore tagged version…
+      button#versionTagCreate.button-link(type="button" data-action="goToHistory") Create tagged version
     .flex.items-center.gap-2
       span#liveEditUnsaved.muted(hidden) Unsaved changes
-      button(type="button" data-action="saveLiveEdit" data-variant="primary") Save
+      button#liveEditSaveBtn(type="button" data-action="saveLiveEdit" data-variant="primary") Save
       button.button-link(type="button" data-modal-close="liveEditModal") Close
-  .live-edit-body
+  .live-edit-body(data-tab-content="editor")
     .live-edit-pane.live-edit-pane--preview
       iframe#liveEditFrame(sandbox="allow-forms allow-scripts allow-same-origin" title="Live preview")
     .live-edit-pane.live-edit-pane--editor
       #liveEditEditor
+  .live-edit-history(data-tab-content="history" hidden)
+    .version-history-inner
+      p#versionHistoryEmpty(hidden) No saved versions yet.
+      table.version-table#versionHistoryTable(hidden)
+        thead
+          tr
+            th Date
+            th Tag
+            th
+        tbody#versionHistoryBody

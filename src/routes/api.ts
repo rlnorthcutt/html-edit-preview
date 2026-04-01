@@ -74,6 +74,7 @@ export function createApiRouter(db: PreviewDB) {
       return c.json({ ok: false, error: "HTML content exceeds 1 MB limit." }, 413);
     }
     db.updatePreviewHtml(id, html);
+    db.saveVersion(id, html);
     return c.json({ ok: true });
   });
 
@@ -90,6 +91,44 @@ export function createApiRouter(db: PreviewDB) {
       type: safeText(body.type),
       owner: safeText(body.owner || auth.name),
     });
+    return c.json({ ok: true });
+  });
+
+  // ---------- Versions ----------
+  api.get("/previews/:id/versions", (c) => {
+    const auth = requireAuth(db, c.req.raw);
+    if (!auth) return c.json({ ok: false }, 401);
+    const id = Number(c.req.param("id"));
+    const tagged = c.req.query("tagged") === "1";
+    const versions = tagged ? db.listTaggedVersions(id) : db.listVersions(id);
+    return c.json({ ok: true, versions });
+  });
+
+  api.get("/previews/:id/versions/:versionId", (c) => {
+    const auth = requireAuth(db, c.req.raw);
+    if (!auth) return c.json({ ok: false }, 401);
+    const versionId = Number(c.req.param("versionId"));
+    const version = db.getVersion(versionId);
+    if (!version) return c.json({ ok: false }, 404);
+    return c.json({ ok: true, version });
+  });
+
+  api.post("/previews/:id/versions/:versionId/tag", async (c) => {
+    const auth = requireAuth(db, c.req.raw);
+    if (!auth) return c.json({ ok: false }, 401);
+    const versionId = Number(c.req.param("versionId"));
+    const body = await c.req.json().catch(() => ({}));
+    const tag = safeText(body.tag);
+    if (!tag) return c.json({ ok: false, error: "Tag is required." }, 400);
+    db.tagVersion(versionId, tag);
+    return c.json({ ok: true });
+  });
+
+  api.delete("/previews/:id/versions/:versionId/tag", (c) => {
+    const auth = requireAuth(db, c.req.raw);
+    if (!auth) return c.json({ ok: false }, 401);
+    const versionId = Number(c.req.param("versionId"));
+    db.removeVersionTag(versionId);
     return c.json({ ok: true });
   });
 

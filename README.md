@@ -1,12 +1,13 @@
 # HTML Edit & Preview
 
-A lightweight HTML preview and review tool. Create, edit, and annotate HTML mockups with a live preview, status tracking, and collaborative notes.
+A lightweight HTML preview and review tool. Create, edit, and annotate HTML mockups with a live preview, status tracking, collaborative notes, and version history.
 
 Built with [Deno](https://deno.land), [Hono](https://hono.dev), [Pug](https://pugjs.org) templates, and SQLite via `node:sqlite`.
 
 ## Features
 
-- Live HTML editor with real-time preview
+- Live HTML editor with real-time split-pane preview
+- Version history — last 5 saves kept automatically; tag any version (e.g. `v1`, `v2`) to keep it permanently
 - Status workflow: Draft → In Review → Approved / Rejected
 - Per-preview notes with author names
 - Session-based auth with a shared password
@@ -22,8 +23,12 @@ Built with [Deno](https://deno.land), [Hono](https://hono.dev), [Pug](https://pu
 | `GET /admin` | Admin panel |
 | `POST /api/auth/login` | Authenticate |
 | `POST /api/previews` | Create a preview |
-| `PUT /api/previews/:id/html` | Save HTML content |
+| `PUT /api/previews/:id/html` | Save HTML content (also saves a version) |
 | `PUT /api/previews/:id/meta` | Update title, status, etc. |
+| `GET /api/previews/:id/versions` | List versions (add `?tagged=1` for tagged only) |
+| `GET /api/previews/:id/versions/:vId` | Get a single version's HTML |
+| `POST /api/previews/:id/versions/:vId/tag` | Tag a version |
+| `DELETE /api/previews/:id/versions/:vId/tag` | Remove a version's tag |
 | `POST /api/previews/:id/notes` | Add a note |
 | `DELETE /api/previews/:id` | Delete a preview |
 
@@ -34,6 +39,9 @@ Requires Deno 2.x.
 ```sh
 # Start with file-watching
 deno task dev
+
+# Run tests
+deno task test
 ```
 
 The app listens on `http://localhost:8000` by default. Data is stored in `./data/preview.db`.
