@@ -48,6 +48,32 @@ Deno.test("getSessionTokenFromRequest returns null when header is absent", () =>
   assertEquals(getSessionTokenFromRequest(req), null);
 });
 
+// cookie parsing (via requireAuth, since getSessionTokenFromCookie is unexported)
+Deno.test("requireAuth returns null when cookie header is empty", () => {
+  const db = makeDb();
+  const req = new Request("http://localhost/", { headers: { "cookie": "" } });
+  assertEquals(requireAuth(db, req), null);
+});
+
+Deno.test("requireAuth returns null when no preview_token cookie present", () => {
+  const db = makeDb();
+  const req = new Request("http://localhost/", {
+    headers: { "cookie": "other=value; another=thing" },
+  });
+  assertEquals(requireAuth(db, req), null);
+});
+
+Deno.test("requireAuth handles cookie value containing equals sign", () => {
+  const db = makeDb();
+  const token = "abc=def=ghi";
+  db.createSession(token, "dave", futureExpiry());
+  const req = new Request("http://localhost/", {
+    headers: { "cookie": `preview_token=${token}` },
+  });
+  const auth = requireAuth(db, req);
+  assertEquals(auth?.name, "dave");
+});
+
 // requireAuth
 Deno.test("requireAuth returns null when no token present", () => {
   const db = makeDb();

@@ -68,6 +68,7 @@ export function createApiRouter(db: PreviewDB) {
     if (!auth) return c.json({ ok: false }, 401);
 
     const id = Number(c.req.param("id"));
+    if (!Number.isFinite(id)) return c.json({ ok: false }, 400);
     const body = await c.req.json().catch(() => ({}));
     const html = String(body.html ?? "");
     if (html.length > 1_000_000) {
@@ -83,6 +84,7 @@ export function createApiRouter(db: PreviewDB) {
     if (!auth) return c.json({ ok: false }, 401);
 
     const id = Number(c.req.param("id"));
+    if (!Number.isFinite(id)) return c.json({ ok: false }, 400);
     const body = await c.req.json().catch(() => ({}));
     db.updatePreviewMeta(id, {
       title: safeText(body.title),
@@ -99,8 +101,11 @@ export function createApiRouter(db: PreviewDB) {
     const auth = requireAuth(db, c.req.raw);
     if (!auth) return c.json({ ok: false }, 401);
     const id = Number(c.req.param("id"));
+    if (!Number.isFinite(id)) return c.json({ ok: false }, 400);
     const tagged = c.req.query("tagged") === "1";
-    const versions = tagged ? db.listTaggedVersions(id) : db.listVersions(id);
+    const versions = tagged
+      ? db.listTaggedVersions(id)
+      : db.listVersions(id).map(({ html_content: _html, ...v }) => v);
     return c.json({ ok: true, versions });
   });
 
@@ -108,6 +113,7 @@ export function createApiRouter(db: PreviewDB) {
     const auth = requireAuth(db, c.req.raw);
     if (!auth) return c.json({ ok: false }, 401);
     const versionId = Number(c.req.param("versionId"));
+    if (!Number.isFinite(versionId)) return c.json({ ok: false }, 400);
     const version = db.getVersion(versionId);
     if (!version) return c.json({ ok: false }, 404);
     return c.json({ ok: true, version });
@@ -117,6 +123,7 @@ export function createApiRouter(db: PreviewDB) {
     const auth = requireAuth(db, c.req.raw);
     if (!auth) return c.json({ ok: false }, 401);
     const versionId = Number(c.req.param("versionId"));
+    if (!Number.isFinite(versionId)) return c.json({ ok: false }, 400);
     const body = await c.req.json().catch(() => ({}));
     const tag = safeText(body.tag);
     if (!tag) return c.json({ ok: false, error: "Tag is required." }, 400);
@@ -128,6 +135,7 @@ export function createApiRouter(db: PreviewDB) {
     const auth = requireAuth(db, c.req.raw);
     if (!auth) return c.json({ ok: false }, 401);
     const versionId = Number(c.req.param("versionId"));
+    if (!Number.isFinite(versionId)) return c.json({ ok: false }, 400);
     db.removeVersionTag(versionId);
     return c.json({ ok: true });
   });
@@ -182,7 +190,7 @@ export function createApiRouter(db: PreviewDB) {
 
     const body = await c.req.json().catch(() => ({}));
     const name = safeText(body.author_name);
-    const comment = safeText(body.comment);
+    const comment = clampText(safeText(body.comment), 20000);
     if (!name || !comment) return c.json({ ok: false, error: "Name and comment required." }, 400);
 
     db.updateNote(noteId, name, comment);

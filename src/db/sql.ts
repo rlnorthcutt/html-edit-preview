@@ -16,6 +16,8 @@ export type Preview = {
   updated_at: string;
 };
 
+export type PreviewMeta = Omit<Preview, "html_content">;
+
 export type Note = {
   id: number;
   preview_id: number;
@@ -93,6 +95,9 @@ export class PreviewDB {
         created_at TEXT NOT NULL,
         FOREIGN KEY(preview_id) REFERENCES previews(id) ON DELETE CASCADE
       ) STRICT;
+
+      CREATE INDEX IF NOT EXISTS idx_notes_preview_id ON notes(preview_id);
+      CREATE INDEX IF NOT EXISTS idx_versions_preview_id ON preview_versions(preview_id);
     `);
 
     const columns = this.db.prepare(`PRAGMA table_info(previews)`).all() as Array<{ name: string }>;
@@ -187,7 +192,7 @@ export class PreviewDB {
   }
 
   // -------- Previews --------
-  listPreviews(params: { status?: string; sort?: string }): Preview[] {
+  listPreviews(params: { status?: string; sort?: string }): PreviewMeta[] {
     const where: string[] = [];
     const binds: Array<string | number> = [];
 
@@ -204,12 +209,12 @@ export class PreviewDB {
     if (params.sort === "updated_asc") orderBy = "updated_at ASC";
 
     const sql = `
-      SELECT id, title, description, html_content, status, type, owner, created_at, updated_at
+      SELECT id, title, description, status, type, owner, created_at, updated_at
       FROM previews
       ${whereSql}
       ORDER BY ${orderBy}
     `;
-    return this.db.prepare(sql).all(...binds) as Preview[];
+    return this.db.prepare(sql).all(...binds) as PreviewMeta[];
   }
 
   getPreview(id: number): Preview | null {

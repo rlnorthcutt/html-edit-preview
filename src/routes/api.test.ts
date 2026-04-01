@@ -183,6 +183,19 @@ Deno.test("PUT /api/previews/:id/meta updates preview metadata", async () => {
   assertEquals(db.getPreview(id)?.type, "Email");
 });
 
+Deno.test("PUT /api/previews/:id/meta returns 401 without auth", async () => {
+  const { app } = createTestApp();
+  const { token } = await login(app);
+  const id = await createPreview(app, token);
+
+  const res = await app.request(`/api/previews/${id}/meta`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: "T", description: "", status: "Draft", type: "Mockup", owner: "" }),
+  });
+  assertEquals(res.status, 401);
+});
+
 Deno.test("DELETE /api/previews/:id removes the preview", async () => {
   const { app, db } = createTestApp();
   const { token } = await login(app);
@@ -219,6 +232,27 @@ Deno.test("GET /api/previews/:id/versions returns all versions", async () => {
   const data = await res.json();
   assertEquals(data.ok, true);
   assertEquals(data.versions.length, 2);
+});
+
+Deno.test("GET /api/previews/:id/versions does not include html_content", async () => {
+  const { app } = createTestApp();
+  const { token } = await login(app);
+  const id = await setupVersionedPreview(app, token);
+
+  const res = await app.request(`/api/previews/${id}/versions`, { headers: authHeaders(token) });
+  const data = await res.json();
+  assertEquals("html_content" in data.versions[0], false);
+});
+
+Deno.test("GET /api/previews/:id/versions returns empty list for new preview", async () => {
+  const { app } = createTestApp();
+  const { token } = await login(app);
+  const id = await createPreview(app, token);
+
+  const res = await app.request(`/api/previews/${id}/versions`, { headers: authHeaders(token) });
+  const data = await res.json();
+  assertEquals(data.ok, true);
+  assertEquals(data.versions.length, 0);
 });
 
 Deno.test("GET /api/previews/:id/versions returns 401 without auth", async () => {
@@ -272,6 +306,20 @@ Deno.test("POST .../tag makes tagged version visible in /tagged endpoint", async
   assertEquals(data.versions[0].tag, "release");
 });
 
+Deno.test("POST .../tag returns 401 without auth", async () => {
+  const { app, db } = createTestApp();
+  const { token } = await login(app);
+  const id = await setupVersionedPreview(app, token);
+  const versionId = db.listVersions(id)[0].id;
+
+  const res = await app.request(`/api/previews/${id}/versions/${versionId}/tag`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tag: "v1" }),
+  });
+  assertEquals(res.status, 401);
+});
+
 Deno.test("POST .../tag returns 400 for empty tag", async () => {
   const { app, db } = createTestApp();
   const { token } = await login(app);
@@ -284,6 +332,16 @@ Deno.test("POST .../tag returns 400 for empty tag", async () => {
     body: JSON.stringify({ tag: "" }),
   });
   assertEquals(res.status, 400);
+});
+
+Deno.test("DELETE .../tag returns 401 without auth", async () => {
+  const { app, db } = createTestApp();
+  const { token } = await login(app);
+  const id = await setupVersionedPreview(app, token);
+  const versionId = db.listVersions(id)[0].id;
+
+  const res = await app.request(`/api/previews/${id}/versions/${versionId}/tag`, { method: "DELETE" });
+  assertEquals(res.status, 401);
 });
 
 Deno.test("DELETE .../tag removes the tag from a version", async () => {
@@ -331,6 +389,19 @@ Deno.test("GET .../versions/:vId returns 404 for unknown version", async () => {
 
 // ---- Notes ----
 
+Deno.test("POST /api/previews/:id/notes returns 401 without auth", async () => {
+  const { app } = createTestApp();
+  const { token } = await login(app);
+  const id = await createPreview(app, token);
+
+  const res = await app.request(`/api/previews/${id}/notes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ author_name: "alice", comment: "hello" }),
+  });
+  assertEquals(res.status, 401);
+});
+
 Deno.test("POST /api/previews/:id/notes adds a note", async () => {
   const { app, db } = createTestApp();
   const { token } = await login(app);
@@ -370,6 +441,45 @@ Deno.test("POST /api/previews/:id/notes with update_status changes status", asyn
     body: JSON.stringify({ author_name: "alice", comment: "approving", update_status: "Approved" }),
   });
   assertEquals(db.getPreview(id)?.status, "Approved");
+});
+
+Deno.test("PUT /api/notes/:noteId returns 401 without auth", async () => {
+  const { app, db } = createTestApp();
+  const { token } = await login(app);
+  const id = await createPreview(app, token);
+  await app.request(`/api/previews/${id}/notes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ author_name: "a", comment: "original" }),
+  });
+  const noteId = db.listNotes(id)[0].id;
+
+  const res = await app.request(`/api/notes/${noteId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ author_name: "b", comment: "updated" }),
+  });
+  assertEquals(res.status, 401);
+});
+
+Deno.test("PUT /api/notes/:noteId clamps comment to 20000 chars", async () => {
+  const { app, db } = createTestApp();
+  const { token } = await login(app);
+  const id = await createPreview(app, token);
+  await app.request(`/api/previews/${id}/notes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ author_name: "a", comment: "original" }),
+  });
+  const noteId = db.listNotes(id)[0].id;
+
+  const longComment = "x".repeat(25000);
+  await app.request(`/api/notes/${noteId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ author_name: "a", comment: longComment }),
+  });
+  assertEquals(db.listNotes(id)[0].comment.length, 20000);
 });
 
 Deno.test("PUT /api/notes/:noteId updates a note", async () => {
