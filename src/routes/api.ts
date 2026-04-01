@@ -79,6 +79,26 @@ export function createApiRouter(db: PreviewDB) {
     return c.json({ ok: true });
   });
 
+  api.put("/previews/:id/thumbnail", async (c) => {
+    const auth = requireAuth(db, c.req.raw);
+    if (!auth) return c.json({ ok: false }, 401);
+
+    const id = Number(c.req.param("id"));
+    if (!Number.isFinite(id)) return c.json({ ok: false }, 400);
+
+    const body = await c.req.json().catch(() => ({}));
+    const thumbnail = String(body.thumbnail ?? "");
+    if (!thumbnail.startsWith("data:image/")) {
+      return c.json({ ok: false, error: "Invalid thumbnail." }, 400);
+    }
+    if (thumbnail.length > 500_000) {
+      return c.json({ ok: false, error: "Thumbnail too large." }, 413);
+    }
+
+    db.setPreviewThumbnail(id, thumbnail);
+    return c.json({ ok: true });
+  });
+
   api.put("/previews/:id/meta", async (c) => {
     const auth = requireAuth(db, c.req.raw);
     if (!auth) return c.json({ ok: false }, 401);

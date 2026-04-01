@@ -12,6 +12,7 @@ export type Preview = {
   status: PreviewStatus;
   type: PreviewType;
   owner: string;
+  thumbnail: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -103,6 +104,9 @@ export class PreviewDB {
     const columns = this.db.prepare(`PRAGMA table_info(previews)`).all() as Array<{ name: string }>;
     if (!columns.some((col) => col.name === "owner")) {
       this.db.exec(`ALTER TABLE previews ADD COLUMN owner TEXT NOT NULL DEFAULT ''`);
+    }
+    if (!columns.some((col) => col.name === "thumbnail")) {
+      this.db.exec(`ALTER TABLE previews ADD COLUMN thumbnail TEXT`);
     }
 
     // Seed a welcome preview if empty
@@ -209,7 +213,7 @@ export class PreviewDB {
     if (params.sort === "updated_asc") orderBy = "updated_at ASC";
 
     const sql = `
-      SELECT id, title, description, status, type, owner, created_at, updated_at
+      SELECT id, title, description, status, type, owner, thumbnail, created_at, updated_at
       FROM previews
       ${whereSql}
       ORDER BY ${orderBy}
@@ -260,6 +264,10 @@ export class PreviewDB {
       t,
       id,
     );
+  }
+
+  setPreviewThumbnail(id: number, thumbnail: string) {
+    this.db.prepare(`UPDATE previews SET thumbnail = ? WHERE id = ?`).run(thumbnail, id);
   }
 
   updatePreviewHtml(id: number, html: string) {

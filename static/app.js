@@ -827,11 +827,62 @@ if (metaForm) {
     }).catch(() => {});
   }
 
-  // --- Unsaved indicator ---
+  // --- Unsaved / saved indicator ---
   function updateLiveUnsaved() {
     const el = document.getElementById("liveEditUnsaved");
+    const saveBtn = document.getElementById("liveEditSaveBtn");
     if (!el || !liveEd) return;
-    el.hidden = liveEd.getValue() === liveLastSaved;
+    const hasChanges = liveEd.getValue() !== liveLastSaved;
+    if (hasChanges) {
+      el.textContent = "Unsaved changes";
+      el.classList.remove("fade-out");
+      el.hidden = false;
+    } else {
+      el.hidden = true;
+    }
+    if (saveBtn) saveBtn.disabled = !hasChanges;
+  }
+
+  function showSavedMessage() {
+    const el = document.getElementById("liveEditUnsaved");
+    if (!el) return;
+    el.textContent = "Changes saved";
+    el.classList.remove("fade-out");
+    el.hidden = false;
+    void el.offsetWidth; // force reflow to restart animation
+    el.classList.add("fade-out");
+    setTimeout(() => {
+      el.hidden = true;
+      el.classList.remove("fade-out");
+    }, 2000);
+  }
+
+  // --- Thumbnail capture ---
+  async function captureThumbnail() {
+    if (!livePreviewId) return;
+    const frame = document.getElementById("liveEditFrame");
+    const el = frame?.contentDocument?.documentElement;
+    if (!el) return;
+    try {
+      const { toJpeg } = await import("https://esm.sh/html-to-image@1.11.11");
+      const viewportWidth = frame.contentWindow?.innerWidth || frame.offsetWidth;
+      const captureHeight = Math.round(viewportWidth * 9 / 16);
+      const dataUrl = await toJpeg(el, {
+        quality: 0.75,
+        pixelRatio: 0.5,
+        skipFonts: true,
+        backgroundColor: "#ffffff",
+        height: captureHeight,
+        style: { overflow: "hidden", height: captureHeight + "px" },
+      });
+      await fetch(`/api/previews/${livePreviewId}/thumbnail`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeader() },
+        body: JSON.stringify({ thumbnail: dataUrl }),
+      });
+    } catch (_) {
+      // best-effort — never block on thumbnail failure
+    }
   }
 
   // --- Save ---
@@ -851,7 +902,9 @@ if (metaForm) {
 
     liveLastSaved = html;
     updateLiveUnsaved();
+    showSavedMessage();
     loadTaggedVersions();
+    captureThumbnail();
 
     const viewFrame = document.getElementById("previewFrame");
     if (viewFrame) viewFrame.setAttribute("srcdoc", html);

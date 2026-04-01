@@ -22,6 +22,11 @@ app.route("/api", createApiRouter(db));
 
 export default {
   fetch(request: Request) {
-    return app.fetch(request);
+    return Promise.resolve(app.fetch(request)).catch((err) => {
+      if (err instanceof Deno.errors.NotFound) {
+        return new Response("Not found", { status: 404 });
+      }
+      throw err;
+    });
   },
 };

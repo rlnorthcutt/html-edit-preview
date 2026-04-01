@@ -1,6 +1,11 @@
 .grid.col-1.md-col-2.lg-col-3.xl-col-4
   each preview in previews
     article.preview-card
+      a.preview-card__thumb(href="/preview/" + preview.id tabindex="-1" aria-hidden="true")
+        if preview.thumbnail
+          img(src=preview.thumbnail alt="" loading="lazy")
+        else
+          .preview-card__thumb--empty
       header.preview-card__header
         h3
           a(href="/preview/" + preview.id)= preview.title
